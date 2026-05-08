@@ -77,25 +77,29 @@ public final class SlaytheSpireGameTests {
     }
 
     @GameTest(template = "combat_baseline")
-    public static void cardRegistryContainsOnlyStrikeAndDefend(GameTestHelper helper) {
+    public static void cardRegistryContainsRedPortraitCards(GameTestHelper helper) {
         helper.succeedIf(() -> {
-            assertTrue(CardDefinitions.all().size() == 2, "Only Strike and Defend definitions should remain");
-            assertTrue(CardDefinitions.all().contains(CardDefinitions.STRIKE), "Strike definition should remain");
-            assertTrue(CardDefinitions.all().contains(CardDefinitions.DEFEND), "Defend definition should remain");
+            assertTrue(CardDefinitions.all().size() == 16, "All available red 1024 portrait card definitions should be registered");
+            assertTrue(CardDefinitions.all().contains(CardDefinitions.STRIKE), "Strike definition should be registered");
+            assertTrue(CardDefinitions.all().contains(CardDefinitions.DEFEND), "Defend definition should be registered");
+            assertTrue(CardDefinitions.all().contains(CardDefinitions.BARRICADE), "Barricade definition should be registered");
+            assertTrue(CardDefinitions.all().contains(CardDefinitions.RUPTURE), "Rupture definition should be registered");
         });
     }
 
     @GameTest(template = "combat_baseline")
-    public static void cardStacksOnlyResolveForRetainedDefinitions(GameTestHelper helper) {
+    public static void cardStacksResolveForRedPortraitDefinitions(GameTestHelper helper) {
         ResourceLocation removedId = ResourceLocation.fromNamespaceAndPath(Slaythespire.MODID, "bash_card");
         ItemStack strike = ModItems.createCardStack(CardDefinitions.STRIKE.id());
         ItemStack defend = ModItems.createCardStack(CardDefinitions.DEFEND.id());
+        ItemStack juggernaut = ModItems.createCardStack(CardDefinitions.JUGGERNAUT.id());
         ItemStack removed = ModItems.createCardStack(removedId);
 
         helper.succeedIf(() -> {
             assertTrue(!strike.isEmpty(), "Strike stack should be registered");
             assertTrue(!defend.isEmpty(), "Defend stack should be registered");
-            assertTrue(removed.isEmpty(), "Removed card ids should not create stacks");
+            assertTrue(!juggernaut.isEmpty(), "Power stacks should be registered");
+            assertTrue(removed.isEmpty(), "Cards without current 1024 portrait assets should not create stacks");
         });
     }
 

@@ -4,16 +4,17 @@
 
 SlaytheSpire is an experimental Minecraft Forge 1.20.1 mod that brings Slay the Spire inspired card combat into Minecraft. The current focus is a reusable fully rendered card framework: cards are no longer represented by ordinary item icons, but are composed in Minecraft from a card base, cost orb, card art, title, type banner, and description text.
 
-The current version is a framework validation slice and keeps only a small representative card set:
+The current version is a framework validation slice built around the available red 1024 portrait assets:
 
 - **Strike**: costs 1, attack card, deals 6 damage to the target.
 - **Defend**: costs 1, skill card, grants 5 Block.
+- **Red Powers**: registers Barricade, Berserk, Brutality, Combust, Corruption, Dark Embrace, Demon Form, Evolve, Feel No Pain, Fire Breathing, Inflame, Juggernaut, Metallicize, and Rupture.
 
 ## Features
 
 - Forge 1.20.1 / Java 17 mod.
 - Java API based card definitions. External JSON card registration has been removed.
-- Shared card item renderer using 512 px card assets.
+- Shared card item renderer using 1024 px card UI and portrait assets.
 - Internationalized card names, card types, costs, descriptions, and item tooltips.
 - Combat capability state for energy, block, strength, turn, and target state.
 - Client combat HUD showing HP, energy, block, strength, and turn.
@@ -23,8 +24,8 @@ The current version is a framework validation slice and keeps only a small repre
 ## Player Usage
 
 1. Open the **Slay the Spire Cards** creative tab.
-2. Take the `Strike` or `Defend` card.
-3. Use `Strike` on a hostile target, or use `Defend` directly.
+2. Take `Strike`, `Defend`, or one of the red Power cards.
+3. Use `Strike` on a hostile target, or use `Defend` and Power cards directly.
 4. The first successful card use starts combat.
 5. During combat, the HUD shows HP, energy, block, strength, and turn.
 6. Use the configured key binding or click the HUD end-turn button to advance the turn.
@@ -45,8 +46,8 @@ Language text lives in:
 
 Card rendering assets live in:
 
-- `src/main/resources/assets/slaythespire/textures/item/slay/512/`
-- `src/main/resources/assets/slaythespire/textures/item/slay/cards/`
+- `src/main/resources/assets/slaythespire/textures/cardui/`
+- `src/main/resources/assets/slaythespire/textures/cards/1024portraits/`
 
 The older external JSON card system, dynamic texture manager, and resource templates were intentionally removed so that future cards use the same Java API and rendered-card framework.
 
@@ -74,7 +75,7 @@ Run a dedicated server:
 
 ## Project Status
 
-This is an early validation build. The goal is not to ship a complete Slay the Spire card pool yet, but to establish a reusable, internationalized, server-compatible card rendering and combat framework inside Minecraft. The current card pool intentionally keeps only `Strike` and `Defend`; future cards should reuse the existing `CardDefinition` and `SlayCardRenderSpec` structure.
+This is an early validation build. The goal is not to ship a complete Slay the Spire card pool yet, but to establish a reusable, internationalized, server-compatible card rendering and combat framework inside Minecraft. The current card pool follows the red 1024 portrait assets that are present in the workspace; future cards should reuse the existing `CardDefinition` and `SlayCardRenderSpec` structure.
 
 ## License
 
