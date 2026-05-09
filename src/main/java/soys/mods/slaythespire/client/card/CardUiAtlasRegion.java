@@ -3,6 +3,10 @@ package soys.mods.slaythespire.client.card;
 import net.minecraft.resources.ResourceLocation;
 import soys.mods.slaythespire.Slaythespire;
 
+/**
+ * 中文：cardui 图集区域枚举。每个常量保存 TexturePacker 导出的裁剪区域、原始画布尺寸和偏移，用于在 1024/512 卡牌画布上还原原作 UI 部件。
+ * English: Enum of cardui atlas regions. Each constant stores TexturePacker crop data, original canvas size, and offsets so original UI parts can be restored on 1024/512 card canvases.
+ */
 public enum CardUiAtlasRegion {
     /** 1024 尺寸普通卡牌标题横幅，来自 cardui.png。 */
     REGION_1024_BANNER_COMMON("cardui.png", "1024/banner_common", 2048, 2048, false, 540, 200, 648, 153, 1024, 1024, 191, 741, -1),
@@ -191,19 +195,31 @@ public enum CardUiAtlasRegion {
     /** 512 尺寸卡牌大型阴影，来自 cardui4.png。 */
     REGION_512_CARD_SUPER_SHADOW("cardui4.png", "512/card_super_shadow", 2048, 2048, false, 600, 1372, 366, 489, 512, 512, 73, 10, -1);
 
+    // 中文：texture 指向实际 png 页面，atlasName 保留 atlas 中的原始条目名，便于和 cardui.atlas 对照。
+    // English: texture points to the actual png page, while atlasName keeps the original atlas entry name for cross-checking cardui.atlas.
     private final ResourceLocation texture;
     private final String atlasName;
+    // 中文：textureWidth/textureHeight 是整张图集页面尺寸，计算 UV 时必须使用页面尺寸而不是 region 尺寸。
+    // English: textureWidth/textureHeight are the full atlas page size and must be used for UV calculation instead of region size.
     private final int textureWidth;
     private final int textureHeight;
+    // 中文：rotated 记录 TexturePacker 是否旋转过该区域；当前渲染器会拒绝旋转区域，避免 UV 和顶点方向错乱。
+    // English: rotated records whether TexturePacker rotated the region; the renderer rejects rotated regions to avoid UV and vertex orientation errors.
     private final boolean rotated;
+    // 中文：x/y/width/height 是裁剪后 region 在图集页面上的像素区域。
+    // English: x/y/width/height are the cropped region's pixel rectangle inside the atlas page.
     private final int x;
     private final int y;
     private final int width;
     private final int height;
+    // 中文：originalWidth/originalHeight 和 offsetX/offsetY 用于把裁剪后的 region 放回原始卡牌画布位置。
+    // English: originalWidth/originalHeight and offsetX/offsetY restore the cropped region back to its original card-canvas position.
     private final int originalWidth;
     private final int originalHeight;
     private final int offsetX;
     private final int offsetY;
+    // 中文：index 当前保留 atlas 原始索引；多数导出项没有有效值时为 -1。
+    // English: index preserves the original atlas index when available; most exported entries use -1 when no value is present.
     private final int index;
 
     CardUiAtlasRegion(
@@ -222,6 +238,8 @@ public enum CardUiAtlasRegion {
             int offsetY,
             int index
     ) {
+        // 中文：枚举只保存结构化 atlas 数据，不主动加载纹理；真正的贴图绑定由渲染器通过 RenderType 完成。
+        // English: The enum only stores structured atlas data and does not load textures itself; the renderer binds textures through RenderType.
         this.texture = ResourceLocation.fromNamespaceAndPath(Slaythespire.MODID, "textures/cardui/" + page);
         this.atlasName = atlasName;
         this.textureWidth = textureWidth;
@@ -238,62 +256,92 @@ public enum CardUiAtlasRegion {
         this.index = index;
     }
 
+    // 中文：返回该图集区域所在的纹理页面。
+    // English: Returns the texture page that contains this atlas region.
     public ResourceLocation texture() {
         return texture;
     }
 
+    // 中文：返回该图集区域所在纹理页面的资源位置。
+    // English: Returns the resource location of this atlas region's texture page.
     public ResourceLocation resourceLocation() {
         return texture;
     }
 
+    // 中文：返回 atlas 文件中的原始区域名称。
+    // English: Returns the original region name from the atlas file.
     public String atlasName() {
         return atlasName;
     }
 
+    // 中文：返回完整纹理页面宽度。
+    // English: Returns the full texture page width.
     public int textureWidth() {
         return textureWidth;
     }
 
+    // 中文：返回完整纹理页面高度。
+    // English: Returns the full texture page height.
     public int textureHeight() {
         return textureHeight;
     }
 
+    // 中文：返回该区域在 atlas 中是否被旋转。
+    // English: Returns whether this region was rotated in the atlas.
     public boolean rotated() {
         return rotated;
     }
 
+    // 中文：返回裁剪区域在纹理页面上的左上角 x 坐标。
+    // English: Returns the cropped region's top-left x coordinate on the texture page.
     public int x() {
         return x;
     }
 
+    // 中文：返回裁剪区域在纹理页面上的左上角 y 坐标。
+    // English: Returns the cropped region's top-left y coordinate on the texture page.
     public int y() {
         return y;
     }
 
+    // 中文：返回裁剪区域宽度。
+    // English: Returns the cropped region width.
     public int width() {
         return width;
     }
 
+    // 中文：返回裁剪区域高度。
+    // English: Returns the cropped region height.
     public int height() {
         return height;
     }
 
+    // 中文：返回该区域被裁剪前的原始画布宽度。
+    // English: Returns the original canvas width before cropping.
     public int originalWidth() {
         return originalWidth;
     }
 
+    // 中文：返回该区域被裁剪前的原始画布高度。
+    // English: Returns the original canvas height before cropping.
     public int originalHeight() {
         return originalHeight;
     }
 
+    // 中文：返回裁剪区域还原到原始画布时的 x 偏移。
+    // English: Returns the x offset used to restore the cropped region to the original canvas.
     public int offsetX() {
         return offsetX;
     }
 
+    // 中文：返回裁剪区域还原到原始画布时的 y 偏移。
+    // English: Returns the y offset used to restore the cropped region to the original canvas.
     public int offsetY() {
         return offsetY;
     }
 
+    // 中文：返回 atlas 导出的原始索引。
+    // English: Returns the original index exported by the atlas.
     public int index() {
         return index;
     }

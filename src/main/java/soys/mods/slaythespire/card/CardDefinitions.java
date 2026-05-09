@@ -8,8 +8,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 中文：当前迁移的红色牌定义表。开发者新增卡牌时优先在这里用 attack/skill/power 工厂注册，保持 Java API 统一入口。
+ * English: Definition table for the migrated red cards. Developers should add cards through the attack/skill/power factories here to keep one Java API entrypoint.
+ */
 public final class CardDefinitions {
+    // 中文：LinkedHashMap 保留注册顺序，创造模式物品栏、渲染规格生成和调试输出都会沿用这个顺序。
+    // English: LinkedHashMap preserves registration order for creative-tab listing, render spec generation, and debugging.
     private static final Map<ResourceLocation, CardDefinition> DEFINITIONS = new LinkedHashMap<>();
+    // 中文：基础牌默认永远可用；复杂卡牌可传入 CardPredicate 实现额外限制。
+    // English: Basic cards are always usable by default; complex cards can provide CardPredicate for additional restrictions.
     private static final CardPredicate ALWAYS = context -> true;
 
     public static final CardDefinition STRIKE = attack("strike_card", CardRarity.BASIC, 1,
@@ -48,13 +56,19 @@ public final class CardDefinitions {
     public static final CardDefinition RUPTURE = power("rupture_card", CardRarity.UNCOMMON, 1,
             context -> context.state().addRuptureStrength(1));
 
+    // 中文：禁止实例化静态卡牌定义表。
+    // English: Prevents instantiation of the static card definition table.
     private CardDefinitions() {
     }
 
+    // 中文：按资源 id 查询卡牌定义，找不到时返回 null。
+    // English: Looks up a card definition by resource id, returning null when absent.
     public static CardDefinition get(ResourceLocation id) {
         return DEFINITIONS.get(id);
     }
 
+    // 中文：按资源 id 获取卡牌定义，找不到时抛出错误以暴露注册问题。
+    // English: Gets a card definition by resource id, throwing when missing to expose registration issues.
     public static CardDefinition require(ResourceLocation id) {
         CardDefinition definition = get(id);
         if (definition == null) {
@@ -63,7 +77,11 @@ public final class CardDefinitions {
         return definition;
     }
 
+    // 中文：按内置效果键获取卡牌定义，兼容带或不带 _card 后缀的调用。
+    // English: Gets a card definition by built-in effect key, accepting calls with or without the _card suffix.
     public static CardDefinition requireBuiltinEffect(String builtinId) {
+        // 中文：旧代码或调试入口可能传入 strike 而不是 strike_card，这里统一归一化再查找。
+        // English: Older code or debug hooks may pass strike instead of strike_card, so normalize before lookup.
         String normalized = normalizeBuiltinId(builtinId);
         for (CardDefinition definition : DEFINITIONS.values()) {
             if (definition.effectKey().equals(normalized)) {
@@ -73,39 +91,63 @@ public final class CardDefinitions {
         throw new IllegalArgumentException("Unknown builtin card effect: " + builtinId);
     }
 
+    // 中文：返回全部已注册卡牌定义的不可变快照。
+    // English: Returns an immutable snapshot of all registered card definitions.
     public static List<CardDefinition> all() {
         return List.copyOf(DEFINITIONS.values());
     }
 
+    // 中文：返回当前可在创造栏和玩法中使用的红色牌集合。
+    // English: Returns the red-card set currently exposed to creative tabs and gameplay.
     public static List<CardDefinition> playableRedCards() {
+        // 中文：当前阶段只保留红色牌迁移结果，因此可玩红牌集合等同于全部已注册卡。
+        // English: This phase only keeps migrated red cards, so playable red cards are the full registered set.
         return all();
     }
 
+    // 中文：注册一张以敌人为目标的攻击牌。
+    // English: Registers an attack card targeting an enemy.
     private static CardDefinition attack(String path, CardRarity rarity, int cost, CardEffect effect) {
         return card(path, rarity, CardType.ATTACK, CardTarget.ENEMY, cost, false, effect);
     }
 
+    // 中文：注册一张以自身为目标的技能牌。
+    // English: Registers a skill card targeting the player.
     private static CardDefinition skill(String path, CardRarity rarity, int cost, CardEffect effect) {
         return card(path, rarity, CardType.SKILL, CardTarget.SELF, cost, false, effect);
     }
 
+    // 中文：注册一张以自身为目标的能力牌。
+    // English: Registers a power card targeting the player.
     private static CardDefinition power(String path, CardRarity rarity, int cost, CardEffect effect) {
         return card(path, rarity, CardType.POWER, CardTarget.SELF, cost, false, effect);
     }
 
+    // 中文：集中构建卡牌定义并写入注册表。
+    // English: Centralizes card-definition construction and inserts it into the registry.
     private static CardDefinition card(String path, CardRarity rarity, CardType type, CardTarget target, int cost, boolean exhausts, CardEffect effect) {
+        // 中文：这里集中填充通用默认值：非 X 费、可打出、非虚无、默认 ALWAYS 可用。
+        // English: Shared defaults are centralized here: non-X cost, playable, non-ethereal, and ALWAYS usable.
         return register(new CardDefinition(id(path), rarity, type, target, cost, false, true, exhausts, false, ALWAYS, effect));
     }
 
+    // 中文：把卡牌定义写入有序注册表并返回原定义，便于静态字段链式初始化。
+    // English: Stores the definition in the ordered registry and returns it for static field initialization.
     private static CardDefinition register(CardDefinition definition) {
+        // 中文：注册时不做覆盖检查；如果未来允许扩展包覆盖，应在这里加入明确策略。
+        // English: Registration does not check overwrites; if extensions later allow replacement, that policy should be added here.
         DEFINITIONS.put(definition.id(), definition);
         return definition;
     }
 
+    // 中文：为本模组卡牌路径创建资源 id。
+    // English: Creates a resource id for a card path in this mod namespace.
     private static ResourceLocation id(String path) {
         return ResourceLocation.fromNamespaceAndPath(Slaythespire.MODID, path);
     }
 
+    // 中文：归一化旧调用传入的内置效果 id。
+    // English: Normalizes built-in effect ids supplied by older call sites.
     private static String normalizeBuiltinId(String builtinId) {
         if (builtinId.endsWith("_card")) {
             return builtinId;

@@ -16,9 +16,8 @@ The current version is a framework validation slice built around the available r
 - Java API based card definitions. External JSON card registration has been removed.
 - Shared card item renderer using 1024 px card UI and portrait assets.
 - Internationalized card names, card types, costs, descriptions, and item tooltips.
-- Combat capability state for energy, block, strength, turn, and target state.
-- Client combat HUD showing HP, energy, block, strength, and turn.
-- End-turn support through a key binding or HUD button.
+- Combat capability state for energy, block, strength, and target state.
+- Client combat HUD showing HP, energy, block, and strength.
 - Server-side card effect handling and combat state synchronization, with client-only code isolated under the client package.
 
 ## Player Usage
@@ -27,8 +26,7 @@ The current version is a framework validation slice built around the available r
 2. Take `Strike`, `Defend`, or one of the red Power cards.
 3. Use `Strike` on a hostile target, or use `Defend` and Power cards directly.
 4. The first successful card use starts combat.
-5. During combat, the HUD shows HP, energy, block, strength, and turn.
-6. Use the configured key binding or click the HUD end-turn button to advance the turn.
+5. During combat, the HUD shows HP, energy, block, and strength.
 
 ## Developer Extension Points
 

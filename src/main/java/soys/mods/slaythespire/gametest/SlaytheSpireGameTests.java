@@ -13,26 +13,35 @@ import soys.mods.slaythespire.combat.CombatRules;
 import soys.mods.slaythespire.combat.CombatState;
 import soys.mods.slaythespire.registry.ModItems;
 
+/**
+ * 中文：核心规则 GameTest。这里覆盖战斗状态、注册表、卡牌物品适配和关键伤害公式，防止重构时破坏当前 Java API 卡牌框架。
+ * English: Core rule GameTests. These cover combat state, registries, card item adapters, and key damage formulas so refactors do not break the Java API card framework.
+ */
 @GameTestHolder(Slaythespire.MODID)
 @PrefixGameTestTemplate(false)
 public final class SlaytheSpireGameTests {
+    // 中文：禁止实例化 GameTest 集合类。
+    // English: Prevents instantiation of this GameTest container.
     private SlaytheSpireGameTests() {
     }
 
     @GameTest(template = "combat_baseline")
+    // 中文：验证进入战斗会创建唯一权威的 CombatState。
+    // English: Verifies that entering combat creates the single authoritative CombatState.
     public static void enterCombatCreatesUniqueTruthSource(GameTestHelper helper) {
         CombatState state = new CombatState();
         state.beginCombat(20L, -1);
 
         helper.succeedIf(() -> {
             assertTrue(state.isInCombat(), "Combat state should be active after beginCombat");
-            assertTrue(state.getTurn() == 1, "Combat should begin on turn 1");
             assertTrue(state.getEnergy() == CombatRules.MAX_ENERGY, "Combat should begin with max energy");
             assertTrue(state.getBlock() == 0, "Combat should begin with zero block");
         });
     }
 
     @GameTest(template = "combat_baseline")
+    // 中文：验证退出战斗会清理单场战斗状态。
+    // English: Verifies that exiting combat clears encounter-local state.
     public static void exitCombatClearsEncounterLocalState(GameTestHelper helper) {
         CombatState state = new CombatState();
         state.beginCombat(40L, 23);
@@ -46,12 +55,13 @@ public final class SlaytheSpireGameTests {
             assertTrue(state.getEnergy() == 0, "Energy should reset when encounter ends");
             assertTrue(state.getBlock() == 0, "Block should reset when encounter ends");
             assertTrue(state.getStrength() == 0, "Strength should reset when encounter ends");
-            assertTrue(state.getTurn() == 0, "Turn should reset when encounter ends");
             assertTrue(state.getTargetEntityId() == -1, "Target should reset when encounter ends");
         });
     }
 
     @GameTest(template = "combat_baseline")
+    // 中文：验证能量不足时扣费失败且不会变成负数。
+    // English: Verifies that insufficient energy fails cleanly without going negative.
     public static void insufficientEnergyFailsCleanly(GameTestHelper helper) {
         CombatState state = new CombatState();
         state.beginCombat(60L, -1);
@@ -67,7 +77,11 @@ public final class SlaytheSpireGameTests {
     }
 
     @GameTest(template = "combat_baseline")
+    // 中文：验证新卡牌物品不会在 NBT 中保存战斗真相。
+    // English: Verifies that a fresh card item does not store combat truth in NBT.
     public static void itemAdapterStartsWithoutCombatTruth(GameTestHelper helper) {
+        // 中文：新卡牌物品不应把战斗事实写进 NBT，战斗真相必须来自玩家 CombatState。
+        // English: Fresh card items should not store combat truth in NBT; authoritative combat truth belongs to player CombatState.
         ItemStack stack = ModItems.createCardStack(CardDefinitions.STRIKE.id());
 
         helper.succeedIf(() -> {
@@ -77,7 +91,11 @@ public final class SlaytheSpireGameTests {
     }
 
     @GameTest(template = "combat_baseline")
+    // 中文：验证当前红色 1024 卡牌定义全部注册。
+    // English: Verifies that the current red 1024 card definitions are registered.
     public static void cardRegistryContainsRedPortraitCards(GameTestHelper helper) {
+        // 中文：当前只保留已迁移且有 1024 portrait 资源的红色牌数量。
+        // English: This count covers only migrated red cards with 1024 portrait assets.
         helper.succeedIf(() -> {
             assertTrue(CardDefinitions.all().size() == 16, "All available red 1024 portrait card definitions should be registered");
             assertTrue(CardDefinitions.all().contains(CardDefinitions.STRIKE), "Strike definition should be registered");
@@ -88,7 +106,11 @@ public final class SlaytheSpireGameTests {
     }
 
     @GameTest(template = "combat_baseline")
+    // 中文：验证卡牌物品栈只会为已迁移 1024 资源的定义创建。
+    // English: Verifies that card stacks are created only for definitions migrated to 1024 assets.
     public static void cardStacksResolveForRedPortraitDefinitions(GameTestHelper helper) {
+        // 中文：没有迁移到当前 1024 资源集的旧卡牌必须返回空栈，避免创造模式出现缺图卡。
+        // English: Old cards not migrated to the current 1024 asset set must return empty stacks, preventing missing-art cards in creative mode.
         ResourceLocation removedId = ResourceLocation.fromNamespaceAndPath(Slaythespire.MODID, "bash_card");
         ItemStack strike = ModItems.createCardStack(CardDefinitions.STRIKE.id());
         ItemStack defend = ModItems.createCardStack(CardDefinitions.DEFEND.id());
@@ -104,21 +126,8 @@ public final class SlaytheSpireGameTests {
     }
 
     @GameTest(template = "combat_baseline")
-    public static void nextTurnRefreshesEnergyAndClearsBlock(GameTestHelper helper) {
-        CombatState state = new CombatState();
-        state.beginCombat(80L, -1);
-        state.tryConsumeEnergy(2);
-        state.addBlock(7);
-        state.startNextTurn(140L);
-
-        helper.succeedIf(() -> {
-            assertTrue(state.getTurn() == 2, "Next turn should increment the turn counter");
-            assertTrue(state.getEnergy() == CombatRules.MAX_ENERGY, "Next turn should refresh energy");
-            assertTrue(state.getBlock() == 0, "Next turn should clear block for the MVP ruleset");
-        });
-    }
-
-    @GameTest(template = "combat_baseline")
+    // 中文：验证易伤伤害倍率只应用一次。
+    // English: Verifies that the vulnerable damage multiplier is applied exactly once.
     public static void vulnerableDamageIsAppliedExactlyOnce(GameTestHelper helper) {
         float damage = soys.mods.slaythespire.combat.CombatService.computeAttackDamage(10.0F, 2, 0, 1, 1, true);
 
@@ -126,6 +135,8 @@ public final class SlaytheSpireGameTests {
     }
 
     @GameTest(template = "combat_baseline")
+    // 中文：验证无锁定目标且无敌人时战斗会结束。
+    // English: Verifies that combat ends when there is no locked target and no enemies remain.
     public static void combatWithoutTargetEndsWhenNoEnemiesRemain(GameTestHelper helper) {
         helper.succeedIf(() -> assertTrue(
                 soys.mods.slaythespire.combat.CombatService.shouldEndCombatWithoutTarget(-1, 0),
@@ -134,6 +145,8 @@ public final class SlaytheSpireGameTests {
     }
 
     @GameTest(template = "combat_baseline")
+    // 中文：验证清理战斗会移除受影响实体追踪。
+    // English: Verifies that combat cleanup removes tracked affected combatants.
     public static void clearingEncounterStateDropsTrackedCombatants(GameTestHelper helper) {
         CombatState state = new CombatState();
         state.beginCombat(100L, 9);
@@ -147,6 +160,8 @@ public final class SlaytheSpireGameTests {
         ));
     }
 
+    // 中文：GameTest 断言辅助方法。
+    // English: Helper assertion method for GameTests.
     private static void assertTrue(boolean condition, String message) {
         if (!condition) {
             throw new GameTestAssertException(message);
