@@ -44,15 +44,22 @@ public class CollectibleItem extends Item {
                 ? "tooltip.slaythespire.collectible.relic"
                 : "tooltip.slaythespire.collectible.potion";
         tooltip.add(Component.translatable(kindKey).withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("tooltip.slaythespire.collectible.non_combat").withStyle(ChatFormatting.DARK_GRAY));
+        boolean hasEffect = definition.kind() == CollectibleKind.RELIC
+                ? CollectibleEffects.hasRelicEffect(definition.id())
+                : CollectibleEffects.hasPotionEffect(definition.id());
+        if (hasEffect) {
+            tooltip.add(Component.translatable("tooltip.slaythespire.collectible.active").withStyle(ChatFormatting.GOLD));
+        } else {
+            tooltip.add(Component.translatable("tooltip.slaythespire.collectible.non_combat").withStyle(ChatFormatting.DARK_GRAY));
+        }
     }
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (level.isClientSide) {
-            // 中文：右键收藏品只播放轻量氛围反馈，不向服务器写入任何战斗或数值状态。
-            // English: Right-clicking a collectible only plays light atmosphere feedback and writes no combat or numeric state.
+            // 中文：右键收藏品播放轻量氛围反馈。
+            // English: Right-clicking a collectible plays light atmosphere feedback.
             level.playLocalSound(player.getX(), player.getY(), player.getZ(), SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.25F, 1.45F, false);
             for (int i = 0; i < 6; i++) {
                 double angle = (Math.PI * 2.0D / 6.0D) * i;
@@ -62,8 +69,22 @@ public class CollectibleItem extends Item {
                         player.getZ() + Math.sin(angle) * 0.45D,
                         0.0D, 0.03D, 0.0D);
             }
+            return InteractionResultHolder.sidedSuccess(stack, true);
         }
-        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
+
+        // 中文：药水在服务端触发效果并消耗一瓶；遗物为被动效果，右键不触发。
+        // English: Potions trigger their effect on the server and consume one dose; relics are passive and do not trigger on right-click.
+        if (definition.kind() == CollectibleKind.POTION && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+            CollectibleEffect effect = CollectibleEffects.getPotionEffect(definition.id());
+            if (effect != null) {
+                soys.mods.slaythespire.combat.CombatState state = soys.mods.slaythespire.combat.CombatStateAccess.get(serverPlayer);
+                effect.apply(new CollectibleEffect.Context(serverPlayer, state, null, stack));
+                stack.shrink(1);
+                soys.mods.slaythespire.network.ModNetworking.sync(serverPlayer);
+                return InteractionResultHolder.consume(stack);
+            }
+        }
+        return InteractionResultHolder.sidedSuccess(stack, false);
     }
 
     @Override

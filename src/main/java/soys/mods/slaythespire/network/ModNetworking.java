@@ -12,8 +12,8 @@ import soys.mods.slaythespire.combat.CombatStateAccess;
 import soys.mods.slaythespire.combat.CombatStateSnapshot;
 
 /**
- * 中文：网络通道注册与同步入口。当前只保留战斗状态 S2C 同步，不再保留旧回合按钮请求包。
- * English: Network channel registration and sync entrypoint. The current project keeps only combat-state S2C sync and removes the old end-turn request packet.
+ * 中文：网络通道注册与同步入口。包含战斗状态 S2C 同步和回合结束 C2S 请求。
+ * English: Network channel registration and sync entrypoint. Includes combat-state S2C sync and end-turn C2S request.
  */
 public final class ModNetworking {
     // 中文：协议版本变更会拒绝旧客户端/服务端连接，用于保护包结构兼容性。
@@ -50,7 +50,22 @@ public final class ModNetworking {
                 CombatStateSyncS2CPacket::new,
                 CombatStateSyncS2CPacket::handle
         );
+        // 中文：回合结束请求包，客户端按键后发送到服务端执行回合结算。
+        // English: End-turn request packet, sent from client to server on key press to perform turn settlement.
+        CHANNEL.registerMessage(
+                nextId++,
+                EndTurnC2SPacket.class,
+                EndTurnC2SPacket::encode,
+                EndTurnC2SPacket::new,
+                EndTurnC2SPacket::handle
+        );
         registered = true;
+    }
+
+    // 中文：客户端发送回合结束请求到服务端。
+    // English: Client sends an end-turn request to the server.
+    public static void sendEndTurn() {
+        CHANNEL.sendToServer(new EndTurnC2SPacket());
     }
 
     // 中文：向指定玩家同步战斗 HUD 快照和卡牌预览数据。

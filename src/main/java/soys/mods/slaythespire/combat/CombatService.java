@@ -112,6 +112,10 @@ public final class CombatService {
             definition.effect().apply(context);
         }
 
+        // 中文：出牌后处理牌组逻辑（从手牌移除，进弃牌堆）。
+        // English: Handle deck logic after playing a card (remove from hand, add to discard pile).
+        onCardPlayed(player, definition, stack);
+
         if (definition.exhausts() || (state.isCorruption() && definition.isSkill())) {
             // 中文：消耗逻辑先记录进消耗堆，再由后续 shrink 或生成卡清理处理物品数量。
             // English: Exhaust logic records the card in the exhaust pile before shrink or generated-card cleanup changes stack counts.
@@ -135,6 +139,15 @@ public final class CombatService {
     public static void beginCombat(ServerPlayer player, CombatState state, long gameTime, @Nullable LivingEntity target) {
         state.beginCombat(gameTime, target == null ? -1 : target.getId());
         CombatantStatusAccess.get(player).clear();
+        // 中文：构建牌组并洗牌。
+        // English: Build the deck and shuffle.
+        buildDeck(player, state);
+        // 中文：触发战斗开始类遗物效果（如金刚加力量、水壶抽牌等）。
+        // English: Trigger combat-start relic effects (e.g. Vajra strength, Ornamental Fan draw).
+        soys.mods.slaythespire.collectible.CollectibleEffects.triggerRelicHook(player, state, target, null, soys.mods.slaythespire.collectible.CollectibleEffects.Hook.COMBAT_START);
+        // 中文：第一回合抽 5 张牌。
+        // English: Draw 5 cards for the first turn.
+        drawCards(player, CARDS_PER_TURN);
         player.displayClientMessage(Component.translatable("message.slaythespire.combat_start"), true);
         ModNetworking.sync(player);
     }
@@ -145,6 +158,11 @@ public final class CombatService {
         // 中文：安全退出会同时清玩家状态、卡牌 NBT、临时生成卡和敌人状态，作为所有结束路径的统一出口。
         // English: Safe exit clears player state, card NBT, generated cards, and enemy statuses, serving as the shared exit path for all endings.
         CombatState state = CombatStateAccess.get(player);
+        // 中文：触发战斗结束类遗物效果（如燃烧之血、骨肉），在清理状态前执行。
+        // English: Trigger combat-end relic effects (e.g. Burning Blood, Meat on the Bone) before clearing state.
+        if (state.isInCombat()) {
+            soys.mods.slaythespire.collectible.CollectibleEffects.triggerRelicHook(player, state, null, null, soys.mods.slaythespire.collectible.CollectibleEffects.Hook.COMBAT_END);
+        }
         List<Integer> affectedIds = new ArrayList<>(state.affectedCombatantIds());
         state.clearEncounterState();
         clearCombatFlags(player.getInventory());
@@ -719,6 +737,130 @@ public final class CombatService {
     // English: Safely casts a generic entity to LivingEntity.
     private static LivingEntity asLiving(@Nullable net.minecraft.world.entity.Entity entity) {
         return entity instanceof LivingEntity living ? living : null;
+    }
+
+    // 中文：执行回合结束结算并推进到下一回合。
+    // English: Performs end-of-turn settlement and advances to the next turn.
+    public static void endTurn(ServerPlayer player) {
+        CombatState state = CombatStateAccess.get(player);
+        if (!state.isInCombat()) {
+            return;
+        }
+
+        // 中文：回合结束阶段：触发回合结束类能力牌效果。
+        // English: End phase: trigger end-of-turn power effects.
+        if (state.getCombustDamage() > 0) {
+            dealAllEnemies(player, state.getCombustDamage());
+        }
+        if (state.getMetallicizeBlock() > 0) {
+            gainBlock(player, state.getMetallicizeBlock(), false);
+        }
+        // 中文：触发回合结束类遗物效果（如山铜）。
+        // English: Trigger end-of-turn relic effects (e.g. Orichalcum).
+        soys.mods.slaythespire.collectible.CollectibleEffects.triggerRelicHook(player, state, null, null, soys.mods.slaythespire.collectible.CollectibleEffects.Hook.TURN_END);
+
+        // 中文：清理本回合临时状态。
+        // English: Clear per-turn temporary state.
+        if (state.getTemporaryStrengthLoss() > 0) {
+            state.addStrength(state.getTemporaryStrengthLoss());
+            state.setTemporaryStrengthLoss(0);
+        }
+
+        // 中文：推进回合数并恢复能量。
+        // English: Advance turn number and restore energy.
+        state.setTurn(state.getTurn() + 1);
+        state.setEnergy(state.getMaxEnergy() + state.getBerserkEnergy());
+        state.setDrawLocked(false);
+
+        // 中文：回合开始阶段：触发回合开始类能力牌效果。
+        // English: Start phase: trigger start-of-turn power effects.
+        if (state.getDemonFormStrength() > 0) {
+            state.addStrength(state.getDemonFormStrength());
+        }
+
+        // 中文：回合开始抽 5 张牌。
+        // English: Draw 5 cards at turn start.
+        drawCards(player, 5);
+
+        // 中文：刷新战斗时间，防止超时清理。
+        // English: Refresh combat time to prevent timeout cleanup.
+        state.markCardUse(player.level().getGameTime(), state.getTargetEntityId());
+
+        // 中文：同步新回合状态到客户端。
+        // English: Sync the new turn state to the client.
+        soys.mods.slaythespire.network.ModNetworking.sync(player);
+    }
+
+    // ==================== 牌组系统 ====================
+
+    // 中文：每回合抽牌数量。
+    // English: Number of cards drawn each turn.
+    private static final int CARDS_PER_TURN = 5;
+
+    // 中文：战斗开始时从玩家背包收集卡牌构建牌组并洗牌。
+    // English: Builds the deck from cards in the player's inventory and shuffles it at combat start.
+    public static void buildDeck(ServerPlayer player, CombatState state) {
+        // 中文：收集背包中所有非临时生成的卡牌，放入抽牌堆。
+        // English: Collect all non-temporarily-generated cards from the inventory into the draw pile.
+        for (ItemStack stack : player.getInventory().items) {
+            if (stack.getItem() instanceof CardItem && !CardStacks.isGenerated(stack)) {
+                CardDefinition def = definitionFromStack(stack);
+                if (def != null && def.isPlayable()) {
+                    state.addToDrawPile(def.id().toString());
+                }
+            }
+        }
+        // 中文：如果背包中没有可玩卡牌，加入基础打击和防御保证可玩。
+        // English: If no playable cards in inventory, add basic Strike and Defend to ensure playability.
+        if (state.drawPileSize() == 0) {
+            state.addToDrawPile(CardDefinitions.STRIKE.id().toString());
+            state.addToDrawPile(CardDefinitions.STRIKE.id().toString());
+            state.addToDrawPile(CardDefinitions.STRIKE.id().toString());
+            state.addToDrawPile(CardDefinitions.DEFEND.id().toString());
+            state.addToDrawPile(CardDefinitions.DEFEND.id().toString());
+        }
+        state.shuffleDrawPile(player.getRandom().nextLong());
+    }
+
+    // 中文：从抽牌堆抽指定数量的牌，生成临时卡牌物品到背包。抽牌堆空时洗弃牌堆。
+    // English: Draws the specified number of cards from the draw pile, generating temporary card items into the inventory. Reshuffles discard into draw when empty.
+    public static void drawCards(ServerPlayer player, int count) {
+        CombatState state = CombatStateAccess.get(player);
+        if (count <= 0 || state.isDrawLocked()) {
+            return;
+        }
+        for (int i = 0; i < count; i++) {
+            if (state.drawPileSize() == 0) {
+                if (state.discardPileSize() == 0) {
+                    break;
+                }
+                state.reshuffleDiscardIntoDraw(player.getRandom().nextLong());
+            }
+            String cardId = state.drawOne();
+            if (cardId != null) {
+                ResourceLocation id = ResourceLocation.tryParse(cardId);
+                if (id != null) {
+                    ItemStack stack = createGeneratedCard(id, null);
+                    CardStacks.setInHand(stack, true);
+                    addStack(player, stack);
+                }
+            }
+        }
+    }
+
+    // 中文：出牌后处理牌组逻辑：从手牌移除，非消耗牌进弃牌堆。消耗牌的消耗堆逻辑由 exhaustStack 处理。
+    // English: Handles deck logic after playing a card: remove from hand, non-exhausted cards go to discard pile. Exhaust pile logic for exhausted cards is handled by exhaustStack.
+    public static void onCardPlayed(ServerPlayer player, CardDefinition definition, ItemStack stack) {
+        CombatState state = CombatStateAccess.get(player);
+        String cardId = definition.id().toString();
+        // 中文：从手牌移除。
+        // English: Remove from hand.
+        state.removeFromHand(cardId);
+        // 中文：非消耗牌进弃牌堆。消耗牌由 exhaustStack 加入消耗堆。
+        // English: Non-exhausted cards go to discard pile. Exhausted cards are added to exhaust pile by exhaustStack.
+        if (!definition.exhausts() && !(state.isCorruption() && definition.isSkill()) && !CardStacks.isExhausted(stack)) {
+            state.addToDiscardPile(cardId);
+        }
     }
 
     // 中文：刷新玩家背包中卡牌 tooltip 所需的动态预览 NBT。

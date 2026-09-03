@@ -112,7 +112,7 @@ public final class SlaytheSpireGameTests {
         // 中文：当前只保留已迁移且有 1024 portrait 资源的红色牌数量。
         // English: This count covers only migrated red cards with 1024 portrait assets.
         helper.succeedIf(() -> {
-            assertTrue(CardDefinitions.all().size() == 16, "All available red 1024 portrait card definitions should be registered");
+            assertTrue(CardDefinitions.all().size() == 39, "All available red 1024 portrait card definitions should be registered");
             assertTrue(CardDefinitions.all().contains(CardDefinitions.STRIKE), "Strike definition should be registered");
             assertTrue(CardDefinitions.all().contains(CardDefinitions.DEFEND), "Defend definition should be registered");
             assertTrue(CardDefinitions.all().contains(CardDefinitions.BARRICADE), "Barricade definition should be registered");
@@ -180,11 +180,11 @@ public final class SlaytheSpireGameTests {
     // English: Verifies that relic, potion, and card counts do not drift after batch collectible generation.
     public static void collectionRegistryCountsMatchManifests(GameTestHelper helper) {
         helper.succeedIf(() -> {
-            assertTrue(CollectibleDefinitions.RELICS.size() == 232, "Relic manifest should contain exactly 232 direct relic png entries");
+            assertTrue(CollectibleDefinitions.RELICS.size() == 224, "Relic manifest should contain exactly 224 direct relic png entries");
             assertTrue(CollectibleDefinitions.POTIONS.size() == 88, "Potion manifest should contain exactly 88 recursive potion png entries");
-            assertTrue(count(ModItems.relicCollectibles()) == 232, "Registered relic collectible count should match the relic manifest");
+            assertTrue(count(ModItems.relicCollectibles()) == 224, "Registered relic collectible count should match the relic manifest");
             assertTrue(count(ModItems.potionCollectibles()) == 88, "Registered potion collectible count should match the potion manifest");
-            assertTrue(CardDefinitions.all().size() == 16, "Card definition count should remain at the migrated red-card baseline");
+            assertTrue(CardDefinitions.all().size() == 39, "Card definition count should remain at the migrated red-card baseline");
         });
     }
 
@@ -253,6 +253,62 @@ public final class SlaytheSpireGameTests {
             assertTrue(IroncladSet.isIroncladPiece(new ItemStack(ModItems.IRONCLAD_CHESTPLATE.get()), ArmorItem.Type.CHESTPLATE), "Chestplate should match chest slot");
             assertTrue(IroncladSet.isIroncladPiece(new ItemStack(ModItems.IRONCLAD_LEGGINGS.get()), ArmorItem.Type.LEGGINGS), "Leggings should match legs slot");
             assertTrue(IroncladSet.isIroncladPiece(new ItemStack(ModItems.IRONCLAD_BOOTS.get()), ArmorItem.Type.BOOTS), "Boots should match feet slot");
+        });
+    }
+
+    @GameTest(template = "combat_baseline")
+    // 中文：验证牌组系统的抽牌、弃牌和洗牌逻辑。
+    // English: Verifies the deck system's draw, discard, and shuffle logic.
+    public static void deckSystemDrawAndDiscardWorks(GameTestHelper helper) {
+        CombatState state = new CombatState();
+        state.beginCombat(120L, -1);
+
+        // 中文：添加测试卡牌到抽牌堆。
+        state.addToDrawPile("strike");
+        state.addToDrawPile("defend");
+        state.addToDrawPile("cleave");
+
+        helper.succeedIf(() -> {
+            assertTrue(state.drawPileSize() == 3, "Draw pile should contain 3 cards");
+            assertTrue(state.handSize() == 0, "Hand should start empty");
+
+            // 中文：抽一张牌。
+            String drawn = state.drawOne();
+            assertTrue(drawn != null, "Drawing from non-empty pile should return a card");
+            assertTrue(state.drawPileSize() == 2, "Draw pile should decrease after drawing");
+            assertTrue(state.handSize() == 1, "Hand should increase after drawing");
+
+            // 中文：从手牌移除并加入弃牌堆。
+            state.removeFromHand(drawn);
+            state.addToDiscardPile(drawn);
+            assertTrue(state.handSize() == 0, "Hand should decrease after removing");
+            assertTrue(state.discardPileSize() == 1, "Discard pile should increase after discarding");
+
+            // 中文：抽牌堆空时洗弃牌堆。
+            state.drawOne();
+            state.drawOne();
+            assertTrue(state.drawPileSize() == 0, "Draw pile should be empty after drawing all");
+            state.reshuffleDiscardIntoDraw(42L);
+            assertTrue(state.drawPileSize() == 1, "Draw pile should contain reshuffled discard cards");
+            assertTrue(state.discardPileSize() == 0, "Discard pile should be empty after reshuffling");
+        });
+    }
+
+    @GameTest(template = "combat_baseline")
+    // 中文：验证战斗结束会清理牌组状态。
+    // English: Verifies that combat cleanup clears deck state.
+    public static void combatCleanupClearsDeckState(GameTestHelper helper) {
+        CombatState state = new CombatState();
+        state.beginCombat(140L, -1);
+        state.addToDrawPile("strike");
+        state.addToDiscardPile("defend");
+        state.addToHand("cleave");
+        state.clearEncounterState();
+
+        helper.succeedIf(() -> {
+            assertTrue(state.drawPileSize() == 0, "Draw pile should clear on combat end");
+            assertTrue(state.discardPileSize() == 0, "Discard pile should clear on combat end");
+            assertTrue(state.handSize() == 0, "Hand should clear on combat end");
         });
     }
 

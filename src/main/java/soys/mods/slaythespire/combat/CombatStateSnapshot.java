@@ -8,6 +8,7 @@ import net.minecraft.server.level.ServerPlayer;
  */
 public record CombatStateSnapshot(
         boolean inCombat,
+        int turn,
         int energy,
         int maxEnergy,
         int block,
@@ -22,6 +23,7 @@ public record CombatStateSnapshot(
         // English: Health comes from the player entity, while energy, block, and strength come from the combat Capability.
         return new CombatStateSnapshot(
                 state.isInCombat(),
+                state.getTurn(),
                 state.getEnergy(),
                 state.getMaxEnergy(),
                 state.getBlock(),

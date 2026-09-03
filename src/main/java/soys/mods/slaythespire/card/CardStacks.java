@@ -19,6 +19,8 @@ public final class CardStacks {
     private static final String PREVIEW_STRIKE_COUNT = "sts_preview_strike_count";
     private static final String PREVIEW_HP_LOSS = "sts_preview_hp_loss";
     private static final String PREVIEW_CORRUPTION = "sts_preview_corruption";
+    private static final String IN_HAND = "sts_in_hand";
+    private static final String EXHAUSTED = "sts_exhausted";
 
     // 中文：禁止实例化纯静态 NBT 工具类。
     // English: Prevents instantiation of this static-only NBT utility.
@@ -139,6 +141,30 @@ public final class CardStacks {
         return stack.hasTag() && stack.getTag().getBoolean(PREVIEW_CORRUPTION);
     }
 
+    // 中文：标记物品栈是否为当前手牌中的卡牌。
+    // English: Marks whether the stack is a card currently in hand.
+    public static void setInHand(ItemStack stack, boolean value) {
+        tag(stack).putBoolean(IN_HAND, value);
+    }
+
+    // 中文：读取物品栈是否为当前手牌中的卡牌。
+    // English: Reads whether the stack is a card currently in hand.
+    public static boolean isInHand(ItemStack stack) {
+        return stack.hasTag() && stack.getTag().getBoolean(IN_HAND);
+    }
+
+    // 中文：标记物品栈是否被消耗效果影响。
+    // English: Marks whether the stack is affected by an exhaust effect.
+    public static void setExhausted(ItemStack stack, boolean value) {
+        tag(stack).putBoolean(EXHAUSTED, value);
+    }
+
+    // 中文：读取物品栈是否被消耗效果影响。
+    // English: Reads whether the stack is affected by an exhaust effect.
+    public static boolean isExhausted(ItemStack stack) {
+        return stack.hasTag() && stack.getTag().getBoolean(EXHAUSTED);
+    }
+
     // 中文：清理一场战斗结束后不应保留在物品栈上的临时标记。
     // English: Clears temporary stack flags that should not survive after a combat encounter.
     public static void clearCombatFlags(ItemStack stack) {
@@ -150,6 +176,8 @@ public final class CardStacks {
         // English: End of combat clears per-encounter state; non-temporary cards lose generated marks, while temporary generated cards are removed by CombatService.
         stack.getTag().remove(USED_THIS_COMBAT);
         stack.getTag().remove(COST_OVERRIDE);
+        stack.getTag().remove(IN_HAND);
+        stack.getTag().remove(EXHAUSTED);
         if (!isGenerated(stack)) {
             stack.getTag().remove(GENERATED);
         }

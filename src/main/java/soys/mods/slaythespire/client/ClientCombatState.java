@@ -9,7 +9,7 @@ import soys.mods.slaythespire.combat.CombatStateSnapshot;
 public final class ClientCombatState {
     // 中文：默认值让 HUD 在尚未收到同步包时也能安全读取。
     // English: The default value lets the HUD read safely before the first sync packet arrives.
-    private static CombatStateSnapshot snapshot = new CombatStateSnapshot(false, 0, 3, 0, 0, 0.0F, 20.0F);
+    private static CombatStateSnapshot snapshot = new CombatStateSnapshot(false, 1, 0, 3, 0, 0, 0.0F, 20.0F);
 
     // 中文：禁止实例化客户端战斗快照持有类。
     // English: Prevents instantiation of this client combat snapshot holder.

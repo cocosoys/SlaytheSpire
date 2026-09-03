@@ -35,7 +35,7 @@ public enum CombatHudOverlay implements IGuiOverlay {
         drawBar(graphics, font, x, y + 16, 110, 0xAA0A3045, 0xAA3BB8FF, "EN", state.energy(), state.maxEnergy());
 
         graphics.fill(x, y + 34, x + 110, y + 46, 0xAA2A2A2A);
-        graphics.drawString(font, "BLK " + state.block() + "  STR " + state.strength(), x + 4, y + 37, 0xFFFFFF, false);
+        graphics.drawString(font, "T" + state.turn() + " BLK " + state.block() + " STR " + state.strength(), x + 4, y + 37, 0xFFFFFF, false);
     }
 
     // 中文：绘制带文字的水平数值条。

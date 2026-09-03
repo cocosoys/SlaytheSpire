@@ -56,6 +56,106 @@ public final class CardDefinitions {
     public static final CardDefinition RUPTURE = power("rupture_card", CardRarity.UNCOMMON, 1,
             context -> context.state().addRuptureStrength(1));
 
+    // ==================== 新增攻击牌 ====================
+    public static final CardDefinition CLEAVE = attack("cleave_card", CardRarity.COMMON, 1,
+            context -> CombatService.dealAllEnemies(context.player(), 8.0F));
+    public static final CardDefinition HEAVY_BLADE = attack("heavy_blade_card", CardRarity.UNCOMMON, 2,
+            context -> CombatService.dealAttackDamage(context.player(), context.target(), 14.0F, 3, true));
+    public static final CardDefinition TWIN_STRIKE = attack("twin_strike_card", CardRarity.COMMON, 1,
+            context -> {
+                CombatService.dealAttackDamage(context.player(), context.target(), 5.0F);
+                CombatService.dealAttackDamage(context.player(), context.target(), 5.0F);
+            });
+    public static final CardDefinition BLUDGEON = attack("bludgeon_card", CardRarity.RARE, 3,
+            context -> CombatService.dealAttackDamage(context.player(), context.target(), 32.0F));
+    public static final CardDefinition POMMEL_STRIKE = attack("pommel_strike_card", CardRarity.COMMON, 1,
+            context -> {
+                CombatService.dealAttackDamage(context.player(), context.target(), 9.0F);
+                CombatService.drawTemporaryCards(context.player(), 1);
+            });
+    public static final CardDefinition ANGER = attack("anger_card", CardRarity.COMMON, 0,
+            context -> {
+                CombatService.dealAttackDamage(context.player(), context.target(), 6.0F);
+                CombatService.createTemporaryGeneratedCopy(context.player(), context.definition().id(), null);
+            });
+    public static final CardDefinition WILD_STRIKE = attack("wild_strike_card", CardRarity.COMMON, 1,
+            context -> {
+                CombatService.dealAttackDamage(context.player(), context.target(), 12.0F);
+                CombatService.addStatusCard(context.player(), id("wound_card"));
+            });
+    public static final CardDefinition CARNAGE = card("carnage_card", CardRarity.UNCOMMON, CardType.ATTACK, CardTarget.ENEMY, 2, true,
+            context -> CombatService.dealAttackDamage(context.player(), context.target(), 20.0F));
+    public static final CardDefinition UPPERCUT = attack("uppercut_card", CardRarity.UNCOMMON, 2,
+            context -> {
+                CombatService.dealAttackDamage(context.player(), context.target(), 13.0F);
+                if (context.target() != null) {
+                    CombatService.applyWeakFromPlayer(context.player(), context.target(), 1);
+                    CombatService.applyVulnerableFromPlayer(context.player(), context.target(), 1);
+                }
+            });
+    public static final CardDefinition THUNDERCLAP = attack("thunderclap_card", CardRarity.COMMON, 1,
+            context -> {
+                CombatService.dealAllEnemies(context.player(), 4.0F);
+                CombatService.applyVulnerableToAllEnemies(context.player(), 1);
+            });
+    public static final CardDefinition RAMPAGE = attack("rampage_card", CardRarity.UNCOMMON, 1,
+            context -> {
+                int bonus = context.state().getRampageBonus(context.definition().effectKey());
+                CombatService.dealAttackDamage(context.player(), context.target(), 8.0F + bonus);
+                context.state().addRampageBonus(context.definition().effectKey(), 5);
+            });
+
+    // ==================== 新增技能牌 ====================
+    public static final CardDefinition SHRUG_IT_OFF = skill("shrug_it_off_card", CardRarity.COMMON, 1,
+            context -> {
+                CombatService.gainBlock(context.player(), 8);
+                CombatService.drawTemporaryCards(context.player(), 1);
+            });
+    public static final CardDefinition TRUE_GRIT = skill("true_grit_card", CardRarity.COMMON, 1,
+            context -> {
+                CombatService.gainBlock(context.player(), 7);
+                CombatService.exhaustRandomCards(context.player(), card -> !card.isStatus(), 1, context.stack());
+            });
+    public static final CardDefinition BATTLE_TRANCE = skill("battle_trance_card", CardRarity.UNCOMMON, 0,
+            context -> {
+                CombatService.drawTemporaryCards(context.player(), 3);
+                context.state().setDrawLocked(true);
+            });
+    public static final CardDefinition BLOODLETTING = skill("bloodletting_card", CardRarity.UNCOMMON, 0,
+            context -> {
+                CombatService.loseHpFromCard(context.player(), 3);
+                CombatService.gainEnergy(context.player(), 2);
+            });
+    public static final CardDefinition BURNING_PACT = skill("burning_pact_card", CardRarity.UNCOMMON, 1,
+            context -> {
+                CombatService.exhaustRandomCards(context.player(), card -> !card.isStatus(), 2, context.stack());
+                CombatService.drawTemporaryCards(context.player(), 2);
+            });
+    public static final CardDefinition DISARM = skill("disarm_card", CardRarity.RARE, 1,
+            context -> {
+                if (context.target() != null) {
+                    CombatService.modifyTargetStrengthFromPlayer(context.player(), context.target(), -2);
+                }
+            });
+    public static final CardDefinition INTIMIDATE = skill("intimidate_card", CardRarity.UNCOMMON, 0,
+            context -> CombatService.applyWeakToAllEnemies(context.player(), 1));
+    public static final CardDefinition POWER_THROUGH = skill("power_through_card", CardRarity.UNCOMMON, 1,
+            context -> {
+                CombatService.gainBlock(context.player(), 10);
+                CombatService.addStatusCard(context.player(), id("wound_card"));
+                CombatService.addStatusCard(context.player(), id("wound_card"));
+            });
+    public static final CardDefinition RAGE_SKILL = skill("rage_card", CardRarity.UNCOMMON, 0,
+            context -> context.state().setRageBlockPerAttack(3));
+    public static final CardDefinition RESTLESS = card("restless_card", CardRarity.COMMON, CardType.SKILL, CardTarget.SELF, 0, true,
+            context -> CombatService.gainBlock(context.player(), 4));
+
+    // ==================== 状态牌 ====================
+    // 中文：灼伤状态牌，无法打出，占用手牌位。
+    // English: Wound status card, unplayable, occupies a hand slot.
+    public static final CardDefinition WOUND = card("wound_card", CardRarity.STATUS, CardType.STATUS, CardTarget.NONE, -1, false,
+            context -> { });
+
     // 中文：禁止实例化静态卡牌定义表。
     // English: Prevents instantiation of the static card definition table.
     private CardDefinitions() {

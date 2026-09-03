@@ -35,6 +35,7 @@ public final class CombatStateSyncS2CPacket {
                 buffer.readInt(),
                 buffer.readInt(),
                 buffer.readInt(),
+                buffer.readInt(),
                 buffer.readFloat(),
                 buffer.readFloat()
         ));
@@ -46,6 +47,7 @@ public final class CombatStateSyncS2CPacket {
         // 中文：只编码 HUD 快照，不发送完整 CombatState，减少网络耦合。
         // English: Encode only the HUD snapshot rather than full CombatState to reduce network coupling.
         buffer.writeBoolean(snapshot.inCombat());
+        buffer.writeInt(snapshot.turn());
         buffer.writeInt(snapshot.energy());
         buffer.writeInt(snapshot.maxEnergy());
         buffer.writeInt(snapshot.block());

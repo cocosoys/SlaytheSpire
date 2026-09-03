@@ -15,6 +15,9 @@ public final class CombatState {
     // 中文：基础战斗字段会同步到客户端 HUD；其余字段主要服务端用于卡牌结算。
     // English: Basic combat fields are synced to the client HUD; the remaining fields mainly drive server-side card settlement.
     private boolean inCombat;
+    // 中文：当前回合数，从 1 开始，每回合结束后递增。
+    // English: Current turn number, starting from 1 and incrementing after each turn ends.
+    private int turn;
     private int energy;
     private int maxEnergy = CombatRules.MAX_ENERGY;
     private int block;
@@ -46,6 +49,15 @@ public final class CombatState {
     // 中文：记录本场被消耗的卡牌，供 Exhume 类效果从消耗堆中取回。
     // English: Cards exhausted this combat are recorded so Exhume-style effects can return one from the exhaust pile.
     private final List<String> exhaustedCards = new ArrayList<>();
+    // 中文：抽牌堆，存储待抽的卡牌 id。
+    // English: Draw pile, storing card ids waiting to be drawn.
+    private final List<String> drawPile = new ArrayList<>();
+    // 中文：弃牌堆，存储已打出的非消耗卡牌 id。
+    // English: Discard pile, storing non-exhausted card ids that have been played.
+    private final List<String> discardPile = new ArrayList<>();
+    // 中文：手牌，存储当前在手牌中的卡牌 id。
+    // English: Hand, storing card ids currently in hand.
+    private final List<String> hand = new ArrayList<>();
     // 中文：记录被本玩家影响过的实体，战斗结束时清理它们身上的易伤/虚弱等状态。
     // English: Entities affected by this player are tracked so vulnerable, weak, and similar statuses can be cleared when combat ends.
     private final Set<Integer> affectedCombatantIds = new HashSet<>();
@@ -54,6 +66,18 @@ public final class CombatState {
     // English: Returns whether the player is currently in card combat.
     public boolean isInCombat() {
         return inCombat;
+    }
+
+    // 中文：返回当前回合数（从 1 开始）。
+    // English: Returns the current turn number (starting from 1).
+    public int getTurn() {
+        return turn;
+    }
+
+    // 中文：设置当前回合数。
+    // English: Sets the current turn number.
+    public void setTurn(int turn) {
+        this.turn = turn;
     }
 
     // 中文：返回当前可用能量。
@@ -218,6 +242,7 @@ public final class CombatState {
         // 中文：进入新战斗时重置所有单场状态，但 maxEnergy 保留，便于未来遗物或效果扩展最大能量。
         // English: Starting combat resets all per-combat state but keeps maxEnergy so future relics or effects can extend maximum energy.
         inCombat = true;
+        turn = 1;
         energy = maxEnergy;
         block = 0;
         strength = 0;
@@ -275,6 +300,30 @@ public final class CombatState {
     // English: Adds current energy while keeping it at least zero.
     public void gainEnergy(int amount) {
         energy = Math.max(0, energy + amount);
+    }
+
+    // 中文：设置当前能量值。
+    // English: Sets the current energy value.
+    public void setEnergy(int amount) {
+        energy = Math.max(0, amount);
+    }
+
+    // 中文：返回本回合临时力量损失值。
+    // English: Returns the temporary strength loss value for this turn.
+    public int getTemporaryStrengthLoss() {
+        return temporaryStrengthLoss;
+    }
+
+    // 中文：设置本回合临时力量损失值。
+    // English: Sets the temporary strength loss value for this turn.
+    public void setTemporaryStrengthLoss(int amount) {
+        temporaryStrengthLoss = amount;
+    }
+
+    // 中文：设置每次打出攻击牌获得的愤怒格挡值。
+    // English: Sets the Rage block value gained per attack played.
+    public void setRageBlockPerAttack(int amount) {
+        rageBlockPerAttack = amount;
     }
 
     // 中文：消耗当前全部能量。
@@ -493,5 +542,95 @@ public final class CombatState {
         rampageBonus.clear();
         exhaustedCards.clear();
         affectedCombatantIds.clear();
+        drawPile.clear();
+        discardPile.clear();
+        hand.clear();
+    }
+
+    // ==================== 牌组管理 ====================
+
+    // 中文：返回抽牌堆的不可变视图。
+    // English: Returns an immutable view of the draw pile.
+    public List<String> getDrawPile() {
+        return List.copyOf(drawPile);
+    }
+
+    // 中文：返回弃牌堆的不可变视图。
+    // English: Returns an immutable view of the discard pile.
+    public List<String> getDiscardPile() {
+        return List.copyOf(discardPile);
+    }
+
+    // 中文：返回手牌的不可变视图。
+    // English: Returns an immutable view of the hand.
+    public List<String> getHand() {
+        return List.copyOf(hand);
+    }
+
+    // 中文：向抽牌堆添加一张卡牌。
+    // English: Adds a card to the draw pile.
+    public void addToDrawPile(String cardId) {
+        drawPile.add(cardId);
+    }
+
+    // 中文：向弃牌堆添加一张卡牌。
+    // English: Adds a card to the discard pile.
+    public void addToDiscardPile(String cardId) {
+        discardPile.add(cardId);
+    }
+
+    // 中文：向手牌添加一张卡牌。
+    // English: Adds a card to the hand.
+    public void addToHand(String cardId) {
+        hand.add(cardId);
+    }
+
+    // 中文：从手牌移除一张卡牌，返回是否成功。
+    // English: Removes a card from the hand, returning whether it succeeded.
+    public boolean removeFromHand(String cardId) {
+        return hand.remove(cardId);
+    }
+
+    // 中文：洗牌，随机打乱抽牌堆顺序。
+    // English: Shuffles the draw pile into random order.
+    public void shuffleDrawPile(long seed) {
+        java.util.Collections.shuffle(drawPile, new java.util.Random(seed));
+    }
+
+    // 中文：从抽牌堆抽一张牌到手牌，抽牌堆空时返回 null。
+    // English: Draws one card from the draw pile to the hand, returning null when the draw pile is empty.
+    public String drawOne() {
+        if (drawPile.isEmpty()) {
+            return null;
+        }
+        String cardId = drawPile.remove(drawPile.size() - 1);
+        hand.add(cardId);
+        return cardId;
+    }
+
+    // 中文：将弃牌堆洗入抽牌堆。
+    // English: Shuffles the discard pile into the draw pile.
+    public void reshuffleDiscardIntoDraw(long seed) {
+        drawPile.addAll(discardPile);
+        discardPile.clear();
+        shuffleDrawPile(seed);
+    }
+
+    // 中文：返回抽牌堆数量。
+    // English: Returns the draw pile count.
+    public int drawPileSize() {
+        return drawPile.size();
+    }
+
+    // 中文：返回弃牌堆数量。
+    // English: Returns the discard pile count.
+    public int discardPileSize() {
+        return discardPile.size();
+    }
+
+    // 中文：返回手牌数量。
+    // English: Returns the hand count.
+    public int handSize() {
+        return hand.size();
     }
 }
