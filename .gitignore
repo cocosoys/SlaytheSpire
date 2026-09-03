@@ -132,3 +132,6 @@ src/main/resources/assets/slaythespire/textures/item/slay/relics/arcanosphere.pn
 
 # Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
 !gradle-wrapper.jar
+/*.html
+/*.ps1
+scripts/

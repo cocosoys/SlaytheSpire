@@ -4,18 +4,33 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.ArmorItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.registries.RegistryObject;
 import soys.mods.slaythespire.Slaythespire;
 import soys.mods.slaythespire.card.CardDefinitions;
+import soys.mods.slaythespire.card.CardItem;
+import soys.mods.slaythespire.collectible.CollectibleDefinition;
+import soys.mods.slaythespire.collectible.CollectibleDefinitions;
+import soys.mods.slaythespire.collectible.CollectibleItem;
 import soys.mods.slaythespire.combat.CombatRules;
 import soys.mods.slaythespire.combat.CombatState;
+import soys.mods.slaythespire.equipment.IroncladArmorItem;
+import soys.mods.slaythespire.equipment.IroncladArmorMaterial;
+import soys.mods.slaythespire.equipment.IroncladSet;
 import soys.mods.slaythespire.registry.ModItems;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+
 /**
- * 中文：核心规则 GameTest。这里覆盖战斗状态、注册表、卡牌物品适配和关键伤害公式，防止重构时破坏当前 Java API 卡牌框架。
- * English: Core rule GameTests. These cover combat state, registries, card item adapters, and key damage formulas so refactors do not break the Java API card framework.
+ * 中文：核心规则 GameTest。这里覆盖战斗状态、注册表、卡牌物品适配、收藏品隔离与外观套装零数值约束。
+ * English: Core rule GameTests. These cover combat state, registries, card adapters, collectible isolation, and zero-stat appearance equipment.
  */
 @GameTestHolder(Slaythespire.MODID)
 @PrefixGameTestTemplate(false)
@@ -86,7 +101,7 @@ public final class SlaytheSpireGameTests {
 
         helper.succeedIf(() -> {
             assertTrue(!stack.hasTag(), "Fresh card item should not store combat truth in NBT");
-            assertTrue(stack.getItem() instanceof soys.mods.slaythespire.card.CardItem, "Card item should resolve to the registered adapter item");
+            assertTrue(stack.getItem() instanceof CardItem, "Card item should resolve to the registered adapter item");
         });
     }
 
@@ -160,11 +175,115 @@ public final class SlaytheSpireGameTests {
         ));
     }
 
+    @GameTest(template = "combat_baseline")
+    // 中文：验证遗物、药水和卡牌注册数量不会因为批量收藏品生成而漂移。
+    // English: Verifies that relic, potion, and card counts do not drift after batch collectible generation.
+    public static void collectionRegistryCountsMatchManifests(GameTestHelper helper) {
+        helper.succeedIf(() -> {
+            assertTrue(CollectibleDefinitions.RELICS.size() == 232, "Relic manifest should contain exactly 232 direct relic png entries");
+            assertTrue(CollectibleDefinitions.POTIONS.size() == 88, "Potion manifest should contain exactly 88 recursive potion png entries");
+            assertTrue(count(ModItems.relicCollectibles()) == 232, "Registered relic collectible count should match the relic manifest");
+            assertTrue(count(ModItems.potionCollectibles()) == 88, "Registered potion collectible count should match the potion manifest");
+            assertTrue(CardDefinitions.all().size() == 16, "Card definition count should remain at the migrated red-card baseline");
+        });
+    }
+
+    @GameTest(template = "combat_baseline")
+    // 中文：验证收藏品不复用 CardItem，也不会进入卡牌 BEWLR 渲染路径。
+    // English: Verifies that collectibles do not reuse CardItem and do not enter the card BEWLR render path.
+    public static void collectibleItemsAreNotCards(GameTestHelper helper) {
+        helper.succeedIf(() -> {
+            for (RegistryObject<Item> item : ModItems.collectibles()) {
+                Item registered = item.get();
+                assertTrue(registered instanceof CollectibleItem, "Collectible registry entries should use CollectibleItem");
+                assertTrue(!(registered instanceof CardItem), "Collectibles must not be CardItem instances");
+            }
+        });
+    }
+
+    @GameTest(template = "combat_baseline")
+    // 中文：验证每个收藏品都有模型、贴图与语言键，并且中文语言文件不使用 Unicode 转义。
+    // English: Verifies that every collectible has model, texture, and language keys, and that Chinese language text is not Unicode-escaped.
+    public static void collectibleResourcesAreComplete(GameTestHelper helper) {
+        String zh = resourceText("assets/slaythespire/lang/zh_cn.json");
+        String en = resourceText("assets/slaythespire/lang/en_us.json");
+
+        helper.succeedIf(() -> {
+            assertTrue(!zh.contains("\\u"), "Chinese language file should use direct Simplified Chinese instead of Unicode escapes");
+            for (CollectibleDefinition definition : CollectibleDefinitions.all()) {
+                String itemPath = definition.id().getPath();
+                assertTrue(resourceExists("assets/slaythespire/models/item/" + itemPath + ".json"), "Missing model for " + itemPath);
+                assertTrue(resourceExists("assets/slaythespire/textures/" + definition.texturePath().getPath() + ".png"), "Missing texture for " + itemPath);
+                assertTrue(zh.contains("\"item.slaythespire." + itemPath + "\""), "Missing zh_cn key for " + itemPath);
+                assertTrue(en.contains("\"item.slaythespire." + itemPath + "\""), "Missing en_us key for " + itemPath);
+            }
+        });
+    }
+
+    @GameTest(template = "combat_baseline")
+    // 中文：验证铁甲战士装备材质与物品属性保持零战斗收益。
+    // English: Verifies that the Ironclad equipment material and item attributes remain zero-benefit for combat.
+    public static void ironcladEquipmentHasZeroCombatStats(GameTestHelper helper) {
+        helper.succeedIf(() -> {
+            for (ArmorItem.Type type : ArmorItem.Type.values()) {
+                assertTrue(IroncladArmorMaterial.INSTANCE.getDefenseForType(type) == 0, "Ironclad material defense should be zero for " + type);
+            }
+            assertTrue(IroncladArmorMaterial.INSTANCE.getToughness() == 0.0F, "Ironclad material toughness should be zero");
+            assertTrue(IroncladArmorMaterial.INSTANCE.getKnockbackResistance() == 0.0F, "Ironclad material knockback resistance should be zero");
+            assertTrue(IroncladArmorMaterial.INSTANCE.getEnchantmentValue() == 0, "Ironclad material enchantment value should be zero");
+            assertTrue(count(ModItems.ironcladEquipment()) == 4, "Ironclad set should register four equipment pieces");
+            for (RegistryObject<Item> item : ModItems.ironcladEquipment()) {
+                assertTrue(item.get() instanceof IroncladArmorItem, "Ironclad equipment should use IroncladArmorItem");
+                ItemStack stack = new ItemStack(item.get());
+                assertTrue(!item.get().isEnchantable(stack), "Ironclad equipment should not be enchantable");
+                for (EquipmentSlot slot : EquipmentSlot.values()) {
+                    assertTrue(item.get().getDefaultAttributeModifiers(slot).isEmpty(), "Ironclad equipment should not add attribute modifiers");
+                }
+            }
+        });
+    }
+
+    @GameTest(template = "combat_baseline")
+    // 中文：验证四件套检测必须匹配正确装备槽，避免单件或错槽触发完整外观。
+    // English: Verifies that four-piece detection requires the correct equipment slots, preventing single or mismatched pieces from activating the full appearance.
+    public static void ironcladPieceMatchingUsesCorrectSlots(GameTestHelper helper) {
+        helper.succeedIf(() -> {
+            assertTrue(IroncladSet.isIroncladPiece(new ItemStack(ModItems.IRONCLAD_HELMET.get()), ArmorItem.Type.HELMET), "Helmet should match helmet slot");
+            assertTrue(!IroncladSet.isIroncladPiece(new ItemStack(ModItems.IRONCLAD_HELMET.get()), ArmorItem.Type.CHESTPLATE), "Helmet should not match chest slot");
+            assertTrue(IroncladSet.isIroncladPiece(new ItemStack(ModItems.IRONCLAD_CHESTPLATE.get()), ArmorItem.Type.CHESTPLATE), "Chestplate should match chest slot");
+            assertTrue(IroncladSet.isIroncladPiece(new ItemStack(ModItems.IRONCLAD_LEGGINGS.get()), ArmorItem.Type.LEGGINGS), "Leggings should match legs slot");
+            assertTrue(IroncladSet.isIroncladPiece(new ItemStack(ModItems.IRONCLAD_BOOTS.get()), ArmorItem.Type.BOOTS), "Boots should match feet slot");
+        });
+    }
+
     // 中文：GameTest 断言辅助方法。
     // English: Helper assertion method for GameTests.
     private static void assertTrue(boolean condition, String message) {
         if (!condition) {
             throw new GameTestAssertException(message);
+        }
+    }
+
+    private static int count(Iterable<?> iterable) {
+        int count = 0;
+        for (Object ignored : iterable) {
+            count++;
+        }
+        return count;
+    }
+
+    private static boolean resourceExists(String path) {
+        return SlaytheSpireGameTests.class.getClassLoader().getResource(path) != null;
+    }
+
+    private static String resourceText(String path) {
+        try (InputStream stream = SlaytheSpireGameTests.class.getClassLoader().getResourceAsStream(path)) {
+            if (stream == null) {
+                throw new GameTestAssertException("Missing resource " + path);
+            }
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException exception) {
+            throw new GameTestAssertException("Failed reading resource " + path + ": " + exception.getMessage());
         }
     }
 }

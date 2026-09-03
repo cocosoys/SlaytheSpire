@@ -11,8 +11,8 @@ import soys.mods.slaythespire.card.CardDefinition;
 import soys.mods.slaythespire.card.CardDefinitions;
 
 /**
- * 中文：创造模式标签页注册。当前把已迁移的红色牌集中展示在单独的“杀戮尖塔卡牌”页。
- * English: Creative tab registration. The current migrated red cards are shown together in a dedicated Slay the Spire card tab.
+ * 中文：创造模式标签页注册。卡牌页保持现有红色卡牌，收藏页集中展示铁甲战士套装、遗物和药水收藏品。
+ * English: Creative tab registration. The card tab keeps current red cards, while the collection tab displays the Ironclad set, relics, and potion collectibles.
  */
 public final class ModCreativeTabs {
     public static final DeferredRegister<CreativeModeTab> TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, Slaythespire.MODID);
@@ -26,6 +26,23 @@ public final class ModCreativeTabs {
                 // English: Display order follows CardDefinitions.playableRedCards(), keeping it aligned with definition order.
                 for (CardDefinition definition : CardDefinitions.playableRedCards()) {
                     output.accept(ModItems.createCardStack(definition.id()));
+                }
+            })
+            .build());
+
+    public static final RegistryObject<CreativeModeTab> COLLECTIONS = TABS.register("collections", () -> CreativeModeTab.builder()
+            .title(Component.translatable("itemGroup.slaythespire.collections"))
+            .withTabsBefore(CreativeModeTabs.COMBAT)
+            .icon(() -> ModItems.IRONCLAD_HELMET.get().getDefaultInstance())
+            .displayItems((parameters, output) -> {
+                for (RegistryObject<net.minecraft.world.item.Item> item : ModItems.ironcladEquipment()) {
+                    output.accept(item.get());
+                }
+                for (RegistryObject<net.minecraft.world.item.Item> item : ModItems.relicCollectibles()) {
+                    output.accept(item.get());
+                }
+                for (RegistryObject<net.minecraft.world.item.Item> item : ModItems.potionCollectibles()) {
+                    output.accept(item.get());
                 }
             })
             .build());

@@ -130,7 +130,7 @@ public class CardItem extends Item {
         tooltip.add(Component.translatable("tooltip.slaythespire.card_cost", costText).withStyle(ChatFormatting.AQUA));
         tooltip.add(Component.translatable("tooltip.slaythespire.card_rarity", rarityText(definition)).withStyle(ChatFormatting.DARK_RED));
         tooltip.add(Component.translatable("tooltip.slaythespire.card_type", typeText(definition)).withStyle(ChatFormatting.GOLD));
-        tooltip.add(definition.description().copy().withStyle(ChatFormatting.GRAY));
+        appendDescriptionLines(tooltip, definition.description());
         CardTooltipPreview.appendPreviewLines(definition, stack, tooltip);
         String targetKey = switch (definition.target()) {
             case SELF -> "tooltip.slaythespire.self_target";
@@ -144,6 +144,16 @@ public class CardItem extends Item {
         }
         if (definition.ethereal()) {
             tooltip.add(Component.translatable("tooltip.slaythespire.ethereal").withStyle(ChatFormatting.LIGHT_PURPLE));
+        }
+    }
+
+    // 中文：把描述中的真实换行或字面 \n 拆成多条 tooltip 行。
+    // English: Splits real newlines or literal \n sequences in descriptions into multiple tooltip lines.
+    private static void appendDescriptionLines(List<Component> tooltip, Component description) {
+        String text = description.getString().replace("\\n", "\n");
+        String[] lines = text.split("\\R", -1);
+        for (String line : lines) {
+            tooltip.add(Component.literal(line).withStyle(ChatFormatting.GRAY));
         }
     }
 

@@ -38,8 +38,8 @@ public final class CardTooltipPreview {
 
         String id = definition.effectKey();
         switch (id) {
-            case "strike_card" -> addDamage(tooltip, 6 + strength);
-            case "defend_card" -> addBlock(tooltip, 5);
+//            case "strike_card" -> addDamage(tooltip, 6 + strength);
+//            case "defend_card" -> addBlock(tooltip, 5);
             default -> {
             }
         }
